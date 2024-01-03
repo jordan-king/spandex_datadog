@@ -36,7 +36,7 @@ defmodule SpandexDatadog.ApiServer do
   @type headers :: [{atom, binary}] | [{binary, binary}] | %{binary => binary} | any
 
   @headers [
-    {"Content-Type", "application/msgpack"},
+    {"Content-Type", "application/json"},
     {"Datadog-Meta-Lang", "elixir"},
     {"Datadog-Meta-Lang-Version", System.version()},
     {"Datadog-Meta-Tracer-Version", Application.spec(:spandex_datadog)[:vsn]}
@@ -175,11 +175,9 @@ defmodule SpandexDatadog.ApiServer do
     headers = @headers ++ [{"X-Datadog-Trace-Count", length(traces)}]
     headers = headers ++ List.wrap(if container_id, do: {"Datadog-Container-ID", container_id})
 
-    response =
-      traces
-      |> Enum.map(&format/1)
-      |> encode()
-      |> push(headers, state)
+    non_json_body = traces |> Enum.map(&format/1)
+    {:ok, json_body} = Jason.encode(non_json_body)
+    response = push(json_body, headers, state)
 
     if verbose? do
       Logger.debug(fn -> "Trace response: #{inspect(response)}" end)
